@@ -7,66 +7,85 @@ use std::{
 const MIN_SUPPORT: f64 = 0.;
 const MAX_SUPPORT: f64 = 100.;
 
-/// Converts the data in data.txt to a vector of floats. data.txt must have a format of comma-separated values.
+/// Converts the data in data.txt to a vector of floats. data.txt must have a format of comma-separated numbers.
 fn get_ratings() -> Vec<f64> {
-    let mut ratings = Vec::new();
+    let file = match File::open("data.txt") {
+        Ok(file) => file,
+        Err(err) => panic!("Problem opening the file: {err}"),
+    };
 
-    let file = File::open("data.txt").unwrap();
     let reader = BufReader::new(file);
+    let mut ratings = Vec::<f64>::new();
 
-    for line in reader.lines().flatten() {
-        let info: Vec<&str> = line.split(',').collect();
-        for rating in info {
-            let rating: f64 = rating.parse().unwrap();
-            ratings.push(rating);
-        }
+    for line in reader.lines() {
+        match line {
+            Ok(line) => {
+                ratings.append(
+                    &mut line
+                        .split(',')
+                        .into_iter()
+                        .filter_map(|x| x.parse::<f64>().ok())
+                        .collect::<Vec<f64>>(),
+                );
+            }
+            Err(err) => panic!("Something went wrong: {err}"),
+        };
     }
 
-    ratings.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    ratings.sort_by(|a, b| a.total_cmp(b));
     ratings
 }
 
 /// Gets the 100(1-α)% confidence interval for the mean of the dataset.
-fn get_confidence_interval(alpha: &f64) -> (f64, f64) {
+fn get_confidence_interval(alpha: f64) -> (f64, f64) {
     let ratings = get_ratings();
+    let n = ratings.len() as f64;
+
+    if n < 1. {
+        return (MIN_SUPPORT, MAX_SUPPORT);
+    }
+
     let mut unique_ratings = ratings.clone();
     unique_ratings.dedup();
 
-    let max = ratings.iter().max_by(|x, y| x.total_cmp(y)).unwrap();
-    let min = ratings.iter().min_by(|x, y| x.total_cmp(y)).unwrap();
+    let mut min = MAX_SUPPORT;
+    let mut max = MIN_SUPPORT;
 
-    let n = ratings.len() as f64;
+    for &rating in ratings.iter() {
+        if rating < min {
+            min = rating;
+        }
+        if rating > max {
+            max = rating;
+        }
+    }
 
-    let lower_cdf = |x: &f64| {
-        let nfn = ratings.iter().filter(|rating| rating <= &x).count() as f64;
+    let get_cdf_ci = |x: f64| -> (f64, f64) {
+        let ratings_below_x = ratings.iter().filter(|&&rating| rating <= x).count() as f64;
+        let (mut lower_cdf_ci, mut upper_cdf_ci) = (0., 1.);
 
-        if x < min {
-            return 0.;
+        if x >= min {
+            lower_cdf_ci = incbi(ratings_below_x, n - ratings_below_x + 1., alpha / 2.);
         }
 
-        incbi(nfn, n - nfn + 1., alpha / 2.)
-    };
-
-    let upper_cdf = |x: &f64| {
-        let nfn = ratings.iter().filter(|rating| rating <= &x).count() as f64;
-
-        if x >= max {
-            return 1.;
+        if x < max {
+            upper_cdf_ci = incbi(1. + ratings_below_x, n - ratings_below_x, 1. - alpha / 2.);
         }
 
-        incbi(1. + nfn, n - nfn, 1. - alpha / 2.)
+        (lower_cdf_ci, upper_cdf_ci)
     };
 
     let mut lower_ci_sum = 0.;
     let mut upper_ci_sum = 0.;
 
     for i in 0..unique_ratings.len() - 1 {
-        lower_ci_sum += (unique_ratings[i + 1] - unique_ratings[i]) * upper_cdf(&unique_ratings[i]);
-        upper_ci_sum += (unique_ratings[i + 1] - unique_ratings[i]) * lower_cdf(&unique_ratings[i]);
+        let (lower_cdf_ci, upper_cdf_ci) = get_cdf_ci(unique_ratings[i]);
+        lower_ci_sum += (unique_ratings[i + 1] - unique_ratings[i]) * upper_cdf_ci;
+        upper_ci_sum += (unique_ratings[i + 1] - unique_ratings[i]) * lower_cdf_ci;
     }
 
-    let lower_ci = max - (min - MIN_SUPPORT) * upper_cdf(&MIN_SUPPORT) - lower_ci_sum;
-    let upper_ci = MAX_SUPPORT - (MAX_SUPPORT - max) * lower_cdf(max) - upper_ci_sum;
+    let lower_ci = max - (min - MIN_SUPPORT) * get_cdf_ci(MIN_SUPPORT).1 - lower_ci_sum;
+    let upper_ci = MAX_SUPPORT - (MAX_SUPPORT - max) * get_cdf_ci(max).0 - upper_ci_sum;
 
     (lower_ci, upper_ci)
 }
@@ -75,8 +94,9 @@ fn main() {
     let alpha = 0.05;
     let confidence_level = 100. * (1. - alpha);
 
-    let mean = get_ratings().iter().sum::<f64>() / (get_ratings().len() as f64);
-    let confidence_interval = get_confidence_interval(&alpha);
+    let n = get_ratings().len();
+    let mean = get_ratings().iter().sum::<f64>() / (n as f64);
+    let confidence_interval = get_confidence_interval(alpha);
 
-    println!("Mean: {mean}\n{confidence_level}% Confidence Interval: {confidence_interval:?}")
+    println!("Number of ratings: {n}\nMean: {mean}\n{confidence_level}% confidence interval: {confidence_interval:?}")
 }
