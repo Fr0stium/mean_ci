@@ -27,7 +27,7 @@ fn get_ratings() -> Vec<f64> {
 }
 
 /// Gets the (1-α)% confidence interval for the mean of the dataset.
-fn get_ci(alpha: &f64) -> (f64, f64) {
+fn get_confidence_interval(alpha: &f64) -> (f64, f64) {
     let ratings = get_ratings();
     let mut unique_ratings = ratings.clone();
     unique_ratings.dedup();
@@ -38,7 +38,7 @@ fn get_ci(alpha: &f64) -> (f64, f64) {
     let n = ratings.len() as f64;
 
     let lower_cdf = |x: &f64| {
-        let nfn = ratings.iter().filter(|rating| rating <= &&x).count() as f64;
+        let nfn = ratings.iter().filter(|rating| rating <= &x).count() as f64;
 
         if x < min {
             return 0.;
@@ -48,7 +48,7 @@ fn get_ci(alpha: &f64) -> (f64, f64) {
     };
 
     let upper_cdf = |x: &f64| {
-        let nfn = ratings.iter().filter(|rating| rating <= &&x).count() as f64;
+        let nfn = ratings.iter().filter(|rating| rating <= &x).count() as f64;
 
         if x >= max {
             return 1.;
@@ -66,17 +66,17 @@ fn get_ci(alpha: &f64) -> (f64, f64) {
     }
 
     let lower_ci = max - (min - MIN_SUPPORT) * upper_cdf(&MIN_SUPPORT) - lower_ci_sum;
-    let upper_ci = MAX_SUPPORT - (MAX_SUPPORT - max) * lower_cdf(&max) - upper_ci_sum;
+    let upper_ci = MAX_SUPPORT - (MAX_SUPPORT - max) * lower_cdf(max) - upper_ci_sum;
 
     (lower_ci, upper_ci)
 }
 
 fn main() {
     let alpha = 0.05;
-    let significance = 100. * (1. - alpha);
+    let confidence_level = 100. * (1. - alpha);
 
     let mean = get_ratings().iter().sum::<f64>() / (get_ratings().len() as f64);
-    let ci = get_ci(&alpha);
+    let confidence_interval = get_confidence_interval(&alpha);
 
-    println!("Mean: {mean}\n{significance}% Confidence Interval: {ci:?}")
+    println!("Mean: {mean}\n{confidence_level}% Confidence Interval: {confidence_interval:?}")
 }
