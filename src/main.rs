@@ -24,7 +24,7 @@ fn get_ratings() -> Vec<f64> {
                     &mut line
                         .split(',')
                         .into_iter()
-                        .filter_map(|x| x.parse::<f64>().ok())
+                        .filter_map(|x| x.trim().parse::<f64>().ok())
                         .collect::<Vec<f64>>(),
                 );
             }
@@ -97,7 +97,7 @@ fn main() {
 
     let n = get_ratings().len();
     let mean = get_ratings().iter().sum::<f64>() / (n as f64);
-    let confidence_interval = get_mean_ci(alpha);
+    let mean_ci = get_mean_ci(alpha);
 
-    println!("Number of ratings: {n}\nMean: {mean}\n{confidence_level}% confidence interval: {confidence_interval:?}")
+    println!("Number of ratings: {n}\nMean: {mean}\n{confidence_level}% confidence interval: {mean_ci:?}")
 }
