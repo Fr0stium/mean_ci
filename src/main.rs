@@ -26,7 +26,7 @@ fn get_ratings() -> Vec<f64> {
     ratings
 }
 
-/// Gets the (1-α)% confidence interval for the mean of the dataset.
+/// Gets the 100(1-α)% confidence interval for the mean of the dataset.
 fn get_confidence_interval(alpha: &f64) -> (f64, f64) {
     let ratings = get_ratings();
     let mut unique_ratings = ratings.clone();
