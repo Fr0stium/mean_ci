@@ -40,26 +40,17 @@ fn get_ratings() -> Vec<f64> {
 /// Gets the 100(1-ALPHA)% confidence interval for the mean of the dataset.
 fn get_mean_ci() -> (f64, f64) {
     let ratings = get_ratings();
-    let n = ratings.len() as f64;
+    let n = ratings.len();
 
-    if n < 1. {
+    if n < 1 {
         return (MIN_SUPPORT, MAX_SUPPORT);
     }
 
     let mut unique_ratings = ratings.clone();
     unique_ratings.dedup();
 
-    let mut min = MAX_SUPPORT;
-    let mut max = MIN_SUPPORT;
-
-    for &rating in ratings.iter() {
-        if rating < min {
-            min = rating;
-        }
-        if rating > max {
-            max = rating;
-        }
-    }
+    let (min, max) = (ratings[0], ratings[n - 1]);
+    let n = n as f64;
 
     // Gets the 100(1-ALPHA)% confidence interval for a particular value of the CDF.
     let get_cdf_ci = |x: f64| -> (f64, f64) {
