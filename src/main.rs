@@ -4,6 +4,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+const ALPHA: f64 = 0.05; // Level of significance.
 const MIN_SUPPORT: f64 = 0.; // Minimum possible value of the dataset.
 const MAX_SUPPORT: f64 = 100.; // Maximum possible value of the dataset.
 
@@ -36,8 +37,8 @@ fn get_ratings() -> Vec<f64> {
     ratings
 }
 
-/// Gets the 100(1-α)% confidence interval for the mean of the dataset.
-fn get_mean_ci(alpha: f64) -> (f64, f64) {
+/// Gets the 100(1-ALPHA)% confidence interval for the mean of the dataset.
+fn get_mean_ci() -> (f64, f64) {
     let ratings = get_ratings();
     let n = ratings.len() as f64;
 
@@ -60,17 +61,17 @@ fn get_mean_ci(alpha: f64) -> (f64, f64) {
         }
     }
 
-    // Gets the 100(1-α)% confidence interval for a particular value of the CDF.
+    // Gets the 100(1-ALPHA)% confidence interval for a particular value of the CDF.
     let get_cdf_ci = |x: f64| -> (f64, f64) {
         let ratings_below_x = ratings.iter().filter(|&&rating| rating <= x).count() as f64;
         let (mut cdf_lower_ci, mut cdf_upper_ci) = (0., 1.);
 
         if x >= min {
-            cdf_lower_ci = incbi(ratings_below_x, n - ratings_below_x + 1., alpha / 2.);
+            cdf_lower_ci = incbi(ratings_below_x, n - ratings_below_x + 1., ALPHA / 2.);
         }
 
         if x < max {
-            cdf_upper_ci = incbi(1. + ratings_below_x, n - ratings_below_x, 1. - alpha / 2.);
+            cdf_upper_ci = incbi(1. + ratings_below_x, n - ratings_below_x, 1. - ALPHA / 2.);
         }
 
         (cdf_lower_ci, cdf_upper_ci)
@@ -92,12 +93,11 @@ fn get_mean_ci(alpha: f64) -> (f64, f64) {
 }
 
 fn main() {
-    let alpha = 0.05;
-    let confidence_level = 100. * (1. - alpha);
+    let confidence_level = 100. * (1. - ALPHA);
 
     let n = get_ratings().len();
     let mean = get_ratings().iter().sum::<f64>() / (n as f64);
-    let mean_ci = get_mean_ci(alpha);
+    let mean_ci = get_mean_ci();
 
     println!("Number of ratings: {n}\nMean: {mean}\n{confidence_level}% confidence interval: {mean_ci:?}")
 }
