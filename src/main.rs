@@ -24,7 +24,6 @@ fn get_ratings() -> Vec<f64> {
                 ratings.append(
                     &mut line
                         .split(',')
-                        .into_iter()
                         .filter_map(|x| x.trim().parse::<f64>().ok())
                         .collect::<Vec<f64>>(),
                 );
