@@ -9,9 +9,7 @@ use std::{
 fn get_ratings(data_file: &String) -> Vec<f64> {
     let file = match File::open(data_file) {
         Ok(file) => file,
-        Err(err) => {
-            panic!("{err}");
-        }
+        Err(err) => panic!("{err}"),
     };
 
     let reader = BufReader::new(file);
@@ -117,9 +115,9 @@ fn main() {
     }
 
     let confidence_level = 100. * (1. - alpha);
-    let n = get_ratings(&data_file).len() as f64;
-    let mean = get_ratings(&data_file).iter().sum::<f64>() / n;
-    let mean_ci = get_mean_ci(&data_file, alpha, min_support, max_support);
+    let n = get_ratings(data_file).len() as f64;
+    let mean = get_ratings(data_file).iter().sum::<f64>() / n;
+    let mean_ci = get_mean_ci(data_file, alpha, min_support, max_support);
 
     println!("Number of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci:?}")
 }
