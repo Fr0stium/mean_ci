@@ -6,7 +6,7 @@ An important assumption is that each data point comes from the same distribution
 If the distribution is known, then this program will likely produce less accurate outputs. However, the output may still be useful since many distributions are not closed under convolution. For example, the sum of i.i.d. Beta random variables does not have a closed form, so an exact confidence interval for the mean of a sample coming from a Beta distribution would be difficult to compute.
 
 ## Documentation
-The PDF file containing all the math is on GitHub [here](https://github.com/Fr0stium/mean_ci/blob/aa1d3b1964399f5f3f857edf1f12e8c5c4b93815/documentation.pdf).
+The PDF file containing all the math is on GitHub [here](https://github.com/Fr0stium/mean_ci/blob/master/documentation.pdf).
 
 ## Requirements
 You must be able to run the `.exe` file provided in the release. If you can't do that, you must download [Rust](https://www.rust-lang.org/tools/install).
