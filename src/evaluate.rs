@@ -33,8 +33,7 @@ fn get_ratings(data_file: &String) -> Vec<f64> {
 }
 
 /// Gets the 100(1-ALPHA)% confidence interval for the mean of the dataset.
-fn get_mean_ci(data_file: &String, alpha: f64, min_support: f64, max_support: f64) -> (f64, f64) {
-    let ratings = get_ratings(data_file);
+pub fn get_mean_ci(ratings: Vec<f64>, alpha: f64, min_support: f64, max_support: f64) -> (f64, f64) {
     let n = ratings.len();
 
     if n < 1 {
@@ -88,22 +87,14 @@ fn get_mean_ci(data_file: &String, alpha: f64, min_support: f64, max_support: f6
 }
 
 pub fn output(args: Vec<String>) {
-    if args.len() != 5 {
-        let n = args.len() - 1;
-        panic!("Incorrect number of arguments ({n}), expected 4");
-    }
-
     let data_file = &args[1];
     let alpha = args[2]
-        .trim()
         .parse::<f64>()
         .expect("Could not convert 'alpha' into a number");
     let min_support = args[3]
-        .trim()
         .parse::<f64>()
         .expect("Could not convert 'min_support' into a number");
     let max_support = args[4]
-        .trim()
         .parse::<f64>()
         .expect("Could not convert 'max_support' into a number");
 
@@ -111,10 +102,12 @@ pub fn output(args: Vec<String>) {
         panic!("The argument 'alpha' ({alpha}) must be greater than 0 and less than 1");
     }
 
-    let confidence_level = 100. * (1. - alpha);
-    let n = get_ratings(data_file).len() as f64;
-    let mean = get_ratings(data_file).iter().sum::<f64>() / n;
-    let mean_ci = get_mean_ci(data_file, alpha, min_support, max_support);
+    let ratings = get_ratings(data_file);
 
-    println!("Number of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci:?}")
+    let confidence_level = 100. * (1. - alpha);
+    let n = ratings.len() as f64;
+    let mean = ratings.iter().sum::<f64>() / n;
+    let mean_ci = get_mean_ci(ratings, alpha, min_support, max_support);
+
+    println!("\nNumber of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci:?}")
 }
