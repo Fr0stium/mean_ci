@@ -7,18 +7,26 @@ use crate::evaluate;
 
 const DELAY: u128 = 1000; // How often to send a request (in milliseconds).
 
-async fn get_ratings(id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
+enum MusicType {
+    Song,
+    Album,
+}
+
+async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
     let mut ratings = Vec::<f64>::new();
     let mut current_len = ratings.len();
 
     let mut i = 1;
-
     loop {
         let time_start = Instant::now();
         print!("Scraping page {i} of album {id}...");
 
-        let url =
-            format!("https://www.albumoftheyear.org/album/{id}/user-reviews/?p={i}&type=ratings");
+        let url = match music_type {
+            MusicType::Song => todo!(),
+            MusicType::Album => format!(
+                "https://www.albumoftheyear.org/album/{id}/user-reviews/?p={i}&type=ratings"
+            ),
+        };
 
         let client = reqwest::Client::new();
         let response = client
@@ -34,7 +42,7 @@ async fn get_ratings(id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
 
         document
             .select(&user_rating_selector)
-            .map(|x| x.inner_html())
+            .map(|element| element.inner_html())
             .skip(1) // The first element is the overall track rating.
             .for_each(|rating| ratings.push(rating.parse::<f64>().unwrap()));
 
@@ -64,20 +72,25 @@ async fn get_ratings(id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
 }
 
 pub async fn output(args: Vec<String>) {
-    let id = args[1]
+    let music_type = match args[1].as_str() {
+        "song" => MusicType::Song,
+        "album" => MusicType::Album,
+        _ => panic!("Specify either a song or an album"),
+    };
+    let id = args[2]
         .parse::<i32>()
         .expect("Could not convert ID into a number");
-    let alpha = args[2]
+    let alpha = args[3]
         .parse::<f64>()
         .expect("Could not convert 'alpha' into a number");
-    let min_support = args[3]
+    let min_support = args[4]
         .parse::<f64>()
         .expect("Could not convert 'min_support' into a number");
-    let max_support = args[4]
+    let max_support = args[5]
         .parse::<f64>()
         .expect("Could not convert 'max_support' into a number");
 
-    let ratings = get_ratings(id).await.unwrap();
+    let ratings = get_ratings(music_type, id).await.unwrap();
 
     let confidence_level = 100. * (1. - alpha);
     let n = ratings.len() as f64;
