@@ -44,10 +44,11 @@ async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn
             .select(&user_rating_selector)
             .map(|element| element.inner_html())
             .skip(1)
-            .collect::<Vec<String>>();
+            .map(|element| element.parse::<f64>().unwrap())
+            .collect::<Vec<f64>>();
 
-        for rating in page_ratings.iter() {
-            ratings.push(rating.parse::<f64>().unwrap())
+        for &rating in page_ratings.iter() {
+            ratings.push(rating)
         }
 
         let page_ratings_count = page_ratings.len();
