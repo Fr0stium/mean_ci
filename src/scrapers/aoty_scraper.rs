@@ -6,6 +6,7 @@ use tokio::time::{sleep, Duration};
 use crate::evaluate;
 
 const DELAY: u128 = 1000; // How often to send a request (in milliseconds).
+const RATINGS_PER_PAGE: usize = 80; // Maximum number of ratings per page.
 
 enum MusicType {
     Song,
@@ -14,11 +15,10 @@ enum MusicType {
 
 async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
     let mut ratings = Vec::<f64>::new();
-    let mut current_len = ratings.len();
-
     let mut i = 1;
     loop {
         let time_start = Instant::now();
+
         print!("Scraping page {i} of album {id}...");
 
         let url = match music_type {
@@ -40,30 +40,33 @@ async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn
         let document = scraper::Html::parse_document(&response);
         let user_rating_selector = scraper::Selector::parse("div.rating")?;
 
-        document
+        let page_ratings = document
             .select(&user_rating_selector)
             .map(|element| element.inner_html())
-            .skip(1) // The first element is the overall track rating.
-            .for_each(|rating| ratings.push(rating.parse::<f64>().unwrap()));
+            .skip(1)
+            .collect::<Vec<String>>();
 
-        let diff = ratings.len() - current_len;
+        for rating in page_ratings.iter() {
+            ratings.push(rating.parse::<f64>().unwrap())
+        }
 
-        if diff == 0 {
-            println!(" Added 0 ratings.");
+        let page_ratings_count = page_ratings.len();
+
+        println!(" Added {page_ratings_count} ratings.");
+
+        // Less than 80 ratings on the page means this is the last page
+        if page_ratings_count < RATINGS_PER_PAGE {
             break;
         }
 
-        current_len = ratings.len();
-        i += 1;
-
-        println!(" Added {diff} ratings.");
-
-        // Only send a request once every DELAY milliseconds:
+        // Wait DELAY milliseconds before sending the next request
         let time_difference = time_start.elapsed().as_millis();
         if time_difference < DELAY {
             let sleep_time = DELAY - time_difference;
             sleep(Duration::from_millis(sleep_time as u64)).await;
         }
+
+        i += 1;
     }
 
     ratings.sort_by(|a, b| a.total_cmp(b));
