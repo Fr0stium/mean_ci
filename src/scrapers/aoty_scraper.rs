@@ -15,11 +15,9 @@ enum MusicType {
 
 async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
     let mut ratings = Vec::<f64>::new();
-    let mut i = 1;
-    loop {
-        let time_start = Instant::now();
 
-        print!("Scraping page {i} of album {id}...");
+    for i in 1.. {
+        let time_start = Instant::now();
 
         let url = match music_type {
             MusicType::Song => todo!(),
@@ -29,7 +27,7 @@ async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn
         };
 
         let client = reqwest::Client::new();
-        let response = client
+        let webpage_text = client
             .get(url)
             .header(reqwest::header::USER_AGENT, "CI")
             .send()
@@ -37,7 +35,7 @@ async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn
             .text()
             .await?;
 
-        let document = scraper::Html::parse_document(&response);
+        let document = scraper::Html::parse_document(&webpage_text);
         let user_rating_selector = scraper::Selector::parse("div.rating")?;
 
         let page_ratings = document
@@ -53,21 +51,19 @@ async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn
 
         let page_ratings_count = page_ratings.len();
 
-        println!(" Added {page_ratings_count} ratings.");
+        println!("Scraping page {i} of album {id}... Added {page_ratings_count} ratings.");
 
-        // Less than 80 ratings on the page means this is the last page
+        // Less than 80 ratings on the page means this is the last page.
         if page_ratings_count < RATINGS_PER_PAGE {
             break;
         }
 
-        // Wait DELAY milliseconds before sending the next request
+        // Wait DELAY milliseconds before sending the next request.
         let time_difference = time_start.elapsed().as_millis();
         if time_difference < DELAY {
             let sleep_time = DELAY - time_difference;
             sleep(Duration::from_millis(sleep_time as u64)).await;
         }
-
-        i += 1;
     }
 
     ratings.sort_by(|a, b| a.total_cmp(b));
