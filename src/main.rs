@@ -10,6 +10,6 @@ async fn main() {
     match args.len() {
         5 => data::output(&args),
         6 => websites::aoty::output(&args).await,
-        _ => panic!("Wrong number of arguments specified.")
+        _ => panic!("Wrong number of arguments specified."),
     }
 }
