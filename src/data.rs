@@ -41,5 +41,5 @@ pub fn output(args: &[String]) {
     let n = ratings.len() as f64;
     let mean = ratings.iter().sum::<f64>() / n;
     let mean_ci = evaluate::get_mean_ci(&ratings, alpha, min_support, max_support);
-    println!("\nNumber of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci:?}");
+    println!("\nNumber of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci}");
 }
