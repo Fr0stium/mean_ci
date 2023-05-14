@@ -1,20 +1,15 @@
 use std::env;
 
+mod data;
 mod evaluate;
-mod scrapers;
+mod websites;
 
 #[tokio::main]
 async fn main() {
     let args = env::args().collect::<Vec<String>>();
     match args.len() {
-        5 => {
-            evaluate::output(args);
-        }
-        6 => {
-            scrapers::aoty_scraper::output(args).await;
-        }
-        _ => {
-            println!("Wrong number of arguments specified.")
-        }
+        5 => data::output(&args),
+        6 => websites::aoty::output(&args).await,
+        _ => panic!("Wrong number of arguments specified.")
     }
 }

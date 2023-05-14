@@ -1,11 +1,11 @@
 use reqwest;
 use scraper;
-use std::{error::Error, time::Instant};
+use std::time::Instant;
 use tokio::time::{sleep, Duration};
 
 use crate::evaluate;
 
-const DELAY: u128 = 1000; // How often to send a request (in milliseconds).
+const DELAY: u128 = 800; // How often to send a request (in milliseconds).
 const RATINGS_PER_PAGE: usize = 80; // Maximum number of ratings per page.
 
 enum MusicType {
@@ -13,45 +13,54 @@ enum MusicType {
     Album,
 }
 
-async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn Error>> {
+/// Given an album with id `id`, this returns the HTML code as a String
+/// for the webpage containing user ratings at page `page_number`.
+async fn get_webpage_text(music_type: &MusicType, id: i32, page_number: i32) -> String {
+    let url = match music_type {
+        MusicType::Song => todo!(),
+        MusicType::Album => format!(
+            "https://www.albumoftheyear.org/album/{id}/user-reviews/?p={page_number}&type=ratings"
+        ),
+    };
+
+    let client = reqwest::Client::new();
+    let webpage = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, "CI")
+        .send()
+        .await
+        .unwrap();
+
+    let webpage_text = webpage.text().await.unwrap();
+
+    webpage_text
+}
+
+/// Returns a list of ratings for an album with id `id`.
+async fn get_ratings(music_type: MusicType, id: i32) -> Vec<f64> {
     let mut ratings = Vec::<f64>::new();
 
-    for i in 1.. {
+    for page_number in 1.. {
         let time_start = Instant::now();
+        let mut page_ratings_count = 0;
 
-        let url = match music_type {
-            MusicType::Song => todo!(),
-            MusicType::Album => format!(
-                "https://www.albumoftheyear.org/album/{id}/user-reviews/?p={i}&type=ratings"
-            ),
-        };
-
-        let client = reqwest::Client::new();
-        let webpage_text = client
-            .get(url)
-            .header(reqwest::header::USER_AGENT, "CI")
-            .send()
-            .await?
-            .text()
-            .await?;
-
+        let webpage_text = get_webpage_text(&music_type, id, page_number).await;
         let document = scraper::Html::parse_document(&webpage_text);
-        let user_rating_selector = scraper::Selector::parse("div.rating")?;
+        let user_rating_selector = scraper::Selector::parse("div.rating").unwrap();
 
-        let page_ratings = document
+        document
             .select(&user_rating_selector)
             .map(|element| element.inner_html())
             .skip(1)
             .map(|element| element.parse::<f64>().unwrap())
-            .collect::<Vec<f64>>();
+            .for_each(|rating| {
+                ratings.push(rating);
+                page_ratings_count += 1;
+            });
 
-        for &rating in page_ratings.iter() {
-            ratings.push(rating)
-        }
-
-        let page_ratings_count = page_ratings.len();
-
-        println!("Scraping page {i} of album {id}... Added {page_ratings_count} ratings.");
+        println!(
+            "Scraping page {page_number} of album {id}... Added {page_ratings_count} ratings."
+        );
 
         // Less than 80 ratings on the page means this is the last page.
         if page_ratings_count < RATINGS_PER_PAGE {
@@ -66,12 +75,12 @@ async fn get_ratings(music_type: MusicType, id: i32) -> Result<Vec<f64>, Box<dyn
         }
     }
 
-    ratings.sort_by(|a, b| a.total_cmp(b));
+    ratings.reverse(); // Ratings collected from scraping are in descending order, so reverse them.
 
-    Ok(ratings)
+    ratings
 }
 
-pub async fn output(args: Vec<String>) {
+pub async fn output(args: &Vec<String>) {
     let music_type = match args[1].as_str() {
         "song" => MusicType::Song,
         "album" => MusicType::Album,
@@ -90,12 +99,12 @@ pub async fn output(args: Vec<String>) {
         .parse::<f64>()
         .expect("Could not convert 'max_support' into a number");
 
-    let ratings = get_ratings(music_type, id).await.unwrap();
+    let ratings = get_ratings(music_type, id).await;
 
     let confidence_level = 100. * (1. - alpha);
     let n = ratings.len() as f64;
     let mean = ratings.iter().sum::<f64>() / n;
-    let mean_ci = evaluate::get_mean_ci(ratings, alpha, min_support, max_support);
+    let mean_ci = evaluate::get_mean_ci(&ratings, alpha, min_support, max_support);
 
     println!("\nNumber of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci:?}")
 }
