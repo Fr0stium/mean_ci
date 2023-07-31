@@ -46,7 +46,7 @@ pub fn get_mean_ci(ratings: &Vec<f64>, alpha: f64, min_support: f64, max_support
     };
     let mut mean_ci = ConfidenceInterval {
         lower_bound: max - (min - min_support) * get_cdf_ci(min_support).upper_bound,
-        upper_bound: max_support - (max_support - max) * get_cdf_ci(max).lower_bound,
+        upper_bound: max_support - (min - min_support) * get_cdf_ci(min_support).lower_bound - (max_support - max) * get_cdf_ci(max).lower_bound
     };
     let mut unique_ratings = ratings.clone();
     unique_ratings.dedup();
