@@ -13,7 +13,12 @@ impl Display for ConfidenceInterval {
 }
 
 /// Gets the 100(1-`alpha`)% confidence interval for the mean of the ratings.
-pub fn get_mean_ci(ratings: &Vec<f64>, alpha: f64, min_support: f64, max_support: f64) -> ConfidenceInterval {
+pub fn get_mean_ci(
+    ratings: &Vec<f64>,
+    alpha: f64,
+    min_support: f64,
+    max_support: f64,
+) -> ConfidenceInterval {
     let n = ratings.len();
     if n < 1 {
         return ConfidenceInterval {
@@ -31,22 +36,22 @@ pub fn get_mean_ci(ratings: &Vec<f64>, alpha: f64, min_support: f64, max_support
     let n = n as f64;
     // Gets the 100(1-`alpha`)% confidence interval for a particular value of the CDF.
     let get_cdf_ci = |x: f64| -> ConfidenceInterval {
-        let ratings_below_x = ratings.iter().filter(|&&rating| rating <= x).count() as f64;
+        let ratings_leq_x = ratings.iter().filter(|&&rating| rating <= x).count() as f64;
         let mut cdf_ci = ConfidenceInterval {
             lower_bound: 0.,
             upper_bound: 1.,
         };
         if x >= min {
-            cdf_ci.lower_bound = incbi(ratings_below_x, n - ratings_below_x + 1., alpha / 2.);
+            cdf_ci.lower_bound = incbi(ratings_leq_x, n - ratings_leq_x + 1., alpha / 2.);
         }
         if x < max {
-            cdf_ci.upper_bound = incbi(1. + ratings_below_x, n - ratings_below_x, 1. - alpha / 2.);
+            cdf_ci.upper_bound = incbi(1. + ratings_leq_x, n - ratings_leq_x, 1. - alpha / 2.);
         }
         cdf_ci
     };
     let mut mean_ci = ConfidenceInterval {
         lower_bound: max - (min - min_support) * get_cdf_ci(min_support).upper_bound,
-        upper_bound: max_support - (min - min_support) * get_cdf_ci(min_support).lower_bound - (max_support - max) * get_cdf_ci(max).lower_bound
+        upper_bound: max_support - (max_support - max) * get_cdf_ci(max).lower_bound,
     };
     let mut unique_ratings = ratings.clone();
     unique_ratings.dedup();
