@@ -3,6 +3,8 @@ use reqwest;
 use scraper;
 use tokio::time::{sleep, Duration};
 
+const MIN_SUPPORT: f64 = 0.0;
+const MAX_SUPPORT: f64 = 100.0;
 const DELAY: u64 = 500; // How often to send a request (in milliseconds).
 const RATINGS_PER_PAGE: usize = 80; // Maximum number of ratings per page.
 
@@ -73,16 +75,10 @@ pub async fn output(args: &[String]) {
     let alpha = args[3]
         .parse::<f64>()
         .expect("Could not convert 'alpha' into a number");
-    let min_support = args[4]
-        .parse::<f64>()
-        .expect("Could not convert 'min_support' into a number");
-    let max_support = args[5]
-        .parse::<f64>()
-        .expect("Could not convert 'max_support' into a number");
     let ratings = get_ratings(&music_type, id).await;
     let confidence_level = 100. * (1. - alpha);
     let n = ratings.len() as f64;
     let mean = ratings.iter().sum::<f64>() / n;
-    let mean_ci = evaluate::get_mean_ci(&ratings, alpha, min_support, max_support);
+    let mean_ci = evaluate::get_mean_ci(&ratings, alpha, MIN_SUPPORT, MAX_SUPPORT);
     println!("\nNumber of Ratings: {n}\nMean: {mean}\n{confidence_level}% Confidence Interval: {mean_ci}");
 }
