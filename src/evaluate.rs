@@ -2,8 +2,8 @@ use special_fun::cephes_double::incbi;
 use std::fmt::Display;
 
 pub struct ConfidenceInterval {
-    lower_bound: f64,
-    upper_bound: f64,
+    pub lower_bound: f64,
+    pub upper_bound: f64,
 }
 
 impl Display for ConfidenceInterval {

@@ -1,15 +1,31 @@
-use std::env;
-
-mod data;
 mod evaluate;
 mod websites;
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[clap(group(
+    clap::ArgGroup::new("music_type")
+        .required(true)
+        .args(&["album", "chart"]),
+))]
+struct Args {
+    #[clap(long)]
+    album: Option<i32>,
+
+    #[clap(long)]
+    chart: Option<i32>,
+
+    #[clap(long, default_value_t = 0.1)]
+    alpha: f64,
+}
+
 #[tokio::main]
 async fn main() {
-    let args = env::args().collect::<Vec<String>>();
-    match args.len() {
-        4 => websites::aoty::output(&args).await,
-        5 => data::output(&args),
-        _ => panic!("Wrong number of arguments specified."),
+    let args = Args::parse();
+    if let Some(album) = args.album {
+        websites::aoty::output_album_ci(album, args.alpha).await;
+    } else if let Some(chart) = args.chart {
+        websites::aoty::output_chart_rankings(chart, args.alpha).await;
     }
 }
