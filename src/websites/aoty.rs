@@ -1,7 +1,7 @@
 use crate::evaluate::{self, ConfidenceInterval};
 use regex::Regex;
 use reqwest;
-use scraper;
+use scraper::{Html, Selector};
 use std::fmt;
 use tokio::time::{sleep, Duration};
 
@@ -19,7 +19,7 @@ struct Album {
 
 impl fmt::Debug for Album {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}, {} - {}", self.id, self.artist, self.title)
+        write!(f, "{}, \"{} - {}\"", self.id, self.artist, self.title)
     }
 }
 
@@ -65,11 +65,11 @@ async fn get_chart_page(year: i32, page_number: i32) -> String {
 /// Returns info for the album with id `id`.
 async fn get_album(id: i32) -> Album {
     let album_artist_selector =
-        scraper::Selector::parse("div.albumHeadline > h1 > div.artist > span > span > a").unwrap();
+        Selector::parse("div.albumHeadline > h1 > div.artist > span > span > a").unwrap();
     let album_title_selector =
-        scraper::Selector::parse("div.albumHeadline > h1 > div.albumTitle > span").unwrap();
+        Selector::parse("div.albumHeadline > h1 > div.albumTitle > span").unwrap();
     let webpage_text = get_album_page(id).await;
-    let document = scraper::Html::parse_document(&webpage_text);
+    let document = Html::parse_document(&webpage_text);
     let artist = document
         .select(&album_artist_selector)
         .map(|element| element.inner_html())
@@ -94,8 +94,8 @@ async fn get_album_ratings(id: i32) -> Vec<f64> {
     for page_number in 1.. {
         let mut page_ratings_count = 0;
         let webpage_text = get_album_ratings_page(id, page_number).await;
-        let document = scraper::Html::parse_document(&webpage_text);
-        let user_rating_selector = scraper::Selector::parse("div.rating").unwrap();
+        let document = Html::parse_document(&webpage_text);
+        let user_rating_selector = Selector::parse("div.rating").unwrap();
         document
             .select(&user_rating_selector)
             .map(|element| element.inner_html())
@@ -129,8 +129,8 @@ pub async fn output_chart_rankings(year: i32, alpha: f64) {
     let mut count = album_ids.len();
     for page in 1.. {
         let webpage_text = get_chart_page(year, page).await;
-        let document = scraper::Html::parse_document(&webpage_text);
-        let link_selector = scraper::Selector::parse("span > a").unwrap();
+        let document = Html::parse_document(&webpage_text);
+        let link_selector = Selector::parse("span > a").unwrap();
         document
             .select(&link_selector)
             .filter_map(|n| n.value().attr("href"))
@@ -143,33 +143,43 @@ pub async fn output_chart_rankings(year: i32, alpha: f64) {
         }
         count = new_count;
     }
-    let mut rank_album_ci_tuple = Vec::<(usize, Album, ConfidenceInterval)>::new();
+    let mut info = Vec::<(usize, Album, ConfidenceInterval)>::new();
     for (i, &album_id) in album_ids.iter().enumerate() {
         let album = get_album(album_id).await;
         let ratings = get_album_ratings(album_id).await;
+        let rank = i + 1;
         let mean_ci = evaluate::get_mean_ci(&ratings, alpha, MIN_SUPPORT, MAX_SUPPORT);
-        rank_album_ci_tuple.push((i + 1, album, mean_ci));
+        info.push((rank, album, mean_ci));
     }
-    rank_album_ci_tuple
-        .sort_by(|(_, _, c1), (_, _, c2)| c2.lower_bound.partial_cmp(&c1.lower_bound).unwrap());
+    info.sort_by(|(_, _, c1), (_, _, c2)| c2.lower_bound.partial_cmp(&c1.lower_bound).unwrap());
     let mut new_rank = 1;
     println!();
-    for (old_rank, album, ci) in rank_album_ci_tuple {
-        let lower_bound = ci.lower_bound;
-        match (new_rank as i32).cmp(&(old_rank as i32)) {
-            std::cmp::Ordering::Less => {
-                let difference = old_rank - new_rank;
-                println!("{new_rank}, +{difference}, {:?}, {lower_bound}", album);
-            }
-            std::cmp::Ordering::Equal => {
-                println!("{new_rank}, 0, {:?}, {lower_bound}", album);
-            }
-            std::cmp::Ordering::Greater => {
-                let difference = new_rank - old_rank;
-                println!("{new_rank}, -{difference}, {:?}, {lower_bound}", album);
-            }
-        };
-        new_rank += 1;
+    for (old_rank, album, ci) in info {
+        if let (lower_bound, Some(mean), upper_bound) = (ci.lower_bound, ci.mean, ci.upper_bound) {
+            match (new_rank as i32).cmp(&(old_rank as i32)) {
+                std::cmp::Ordering::Less => {
+                    let difference = old_rank - new_rank;
+                    println!(
+                        "{new_rank}, +{difference}, {:?}, {mean}, {lower_bound}, {upper_bound}",
+                        album
+                    );
+                }
+                std::cmp::Ordering::Equal => {
+                    println!(
+                        "{new_rank}, 0, {:?}, {mean}, {lower_bound}, {upper_bound}",
+                        album
+                    );
+                }
+                std::cmp::Ordering::Greater => {
+                    let difference = new_rank - old_rank;
+                    println!(
+                        "{new_rank}, -{difference}, {:?}, {mean}, {lower_bound}, {upper_bound}",
+                        album
+                    );
+                }
+            };
+            new_rank += 1;
+        }
     }
 }
 

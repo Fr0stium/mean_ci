@@ -2,6 +2,7 @@ use special_fun::cephes_double::incbi;
 use std::fmt::Display;
 
 pub struct ConfidenceInterval {
+    pub mean: Option<f64>,
     pub lower_bound: f64,
     pub upper_bound: f64,
 }
@@ -22,10 +23,12 @@ pub fn get_mean_ci(
     let n = ratings.len();
     if n < 1 {
         return ConfidenceInterval {
+            mean: None,
             lower_bound: min_support,
             upper_bound: max_support,
         };
     }
+    let mean = ratings.iter().sum::<f64>() / (n as f64);
     let [min, max] = [ratings[0], ratings[n - 1]];
     if min < min_support {
         panic!("The minimum value of the dataset ({min}) is less than the given minimum support ({min_support})")
@@ -38,6 +41,7 @@ pub fn get_mean_ci(
     let get_cdf_ci = |x: f64| -> ConfidenceInterval {
         let ratings_leq_x = ratings.iter().filter(|&&rating| rating <= x).count() as f64;
         let mut cdf_ci = ConfidenceInterval {
+            mean: Some(ratings_leq_x / n),
             lower_bound: 0.,
             upper_bound: 1.,
         };
@@ -50,6 +54,7 @@ pub fn get_mean_ci(
         cdf_ci
     };
     let mut mean_ci = ConfidenceInterval {
+        mean: Some(mean),
         lower_bound: max - (min - min_support) * get_cdf_ci(min_support).upper_bound,
         upper_bound: max_support - (max_support - max) * get_cdf_ci(max).lower_bound,
     };
