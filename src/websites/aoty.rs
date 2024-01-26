@@ -75,7 +75,7 @@ async fn get_album(id: i32) -> Album {
         .map(|element| element.inner_html())
         .peekable()
         .peek()
-        .unwrap_or(&"???".to_owned()) // Could fail if there's no link in album title.
+        .unwrap_or(&"Various Artists".to_owned()) // Could fail if there's no link in album title.
         .to_owned();
     let title = document
         .select(&album_title_selector)
