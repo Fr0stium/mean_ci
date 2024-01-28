@@ -7,7 +7,7 @@ use tokio::time::{sleep, Duration};
 
 const MIN_SUPPORT: f64 = 0.0;
 const MAX_SUPPORT: f64 = 100.0;
-const DELAY: u64 = 0; // How often to send a request (in milliseconds).
+const DELAY: u64 = 200; // How often to send a request (in milliseconds).
 const RATINGS_PER_PAGE: usize = 80; // Maximum number of ratings per page.
 const ALBUMS_PER_PAGE: usize = 25; // Maximum number of albums per page (on the charts).
 
@@ -25,14 +25,17 @@ impl fmt::Debug for Album {
 
 async fn get_webpage(url: &String) -> String {
     let client = reqwest::Client::new();
-    let webpage = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, "CI")
-        .send()
-        .await
-        .unwrap();
-
-    webpage.text().await.unwrap()
+    loop {
+        match client
+            .get(url)
+            .header(reqwest::header::USER_AGENT, "CI")
+            .send()
+            .await
+        {
+            Ok(webpage) => return webpage.text().await.unwrap(), // Should always contain text.
+            Err(err) => println!("Retrying due to error (Ctrl + C to exit): {err}"),
+        }
+    }
 }
 
 /// Given an album with id `id`, this returns the HTML code as a String
@@ -73,17 +76,13 @@ async fn get_album(id: i32) -> Album {
     let artist = document
         .select(&album_artist_selector)
         .map(|element| element.inner_html())
-        .peekable()
-        .peek()
-        .unwrap_or(&"Various Artists".to_owned()) // Could fail if there's no link in album title.
-        .to_owned();
+        .next()
+        .unwrap_or_else(|| String::from("Various Artists")); // Could fail if there's no link in album title.
     let title = document
         .select(&album_title_selector)
         .map(|element| element.inner_html())
-        .peekable()
-        .peek()
-        .unwrap_or(&"???".to_owned()) // Should never fail...
-        .to_owned();
+        .next()
+        .unwrap_or_else(|| String::from("???")); // Should not fail, but you never know...
 
     Album { id, artist, title }
 }
@@ -100,7 +99,7 @@ async fn get_album_ratings(id: i32) -> Vec<f64> {
             .select(&user_rating_selector)
             .map(|element| element.inner_html())
             .skip(1)
-            .map(|element| element.parse::<f64>().unwrap())
+            .filter_map(|element| element.parse::<f64>().ok())
             .for_each(|rating| {
                 ratings.push(rating);
                 page_ratings_count += 1;
@@ -124,13 +123,13 @@ async fn get_album_ratings(id: i32) -> Vec<f64> {
 /// of the user score of each album with significance level `alpha`, and then sorting
 /// the albums by the lower bound of each album's CI in descending order.
 pub async fn output_chart_rankings(year: i32, alpha: f64) {
+    let re = Regex::new(r"^\/album\/([0-9]+)-+(.+)\.php").unwrap(); // Valid regex pattern. Extracts the Album ID from a link.
     let mut album_ids = Vec::<i32>::new();
-    let re = Regex::new(r"^\/album\/([0-9]+)-+(.+)\.php").unwrap();
     let mut count = album_ids.len();
     for page in 1.. {
         let webpage_text = get_chart_page(year, page).await;
         let document = Html::parse_document(&webpage_text);
-        let link_selector = Selector::parse("span > a").unwrap();
+        let link_selector = Selector::parse("span > a").unwrap(); // Valid selector.
         document
             .select(&link_selector)
             .filter_map(|n| n.value().attr("href"))
