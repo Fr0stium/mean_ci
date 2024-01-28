@@ -59,6 +59,9 @@ async fn get_album_ratings_page(id: i32, page_number: i32) -> String {
 /// Given a chart of year `year`, this returns the HTML code as a String
 /// for the webpage containing the albums at page `page_number`.
 async fn get_chart_page(year: i32, page_number: i32) -> String {
+    if year < 1950 {
+        panic!("Year should be at least 1950.")
+    }
     let url =
         format!("https://www.albumoftheyear.org/ratings/user-highest-rated/{year}/{page_number}/");
 
