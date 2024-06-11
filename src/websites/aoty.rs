@@ -7,7 +7,7 @@ use tokio::time::{sleep, Duration};
 
 const MIN_SUPPORT: f64 = 0.0;
 const MAX_SUPPORT: f64 = 100.0;
-const DELAY: u64 = 200; // How often to send a request (in milliseconds).
+const DELAY: u64 = 0; // How often to send a request (in milliseconds).
 const RATINGS_PER_PAGE: usize = 80; // Maximum number of ratings per page.
 const ALBUMS_PER_PAGE: usize = 25; // Maximum number of albums per page (on the charts).
 
@@ -157,25 +157,27 @@ pub async fn output_chart_rankings(year: i32, alpha: f64) {
     let mut new_rank = 1;
     println!();
     for (old_rank, album, ci) in info {
-        if let (lower_bound, Some(mean), upper_bound) = (ci.lower_bound, ci.mean, ci.upper_bound) {
+        if let (n, lower_bound, Some(mean), upper_bound) =
+            (ci.n, ci.lower_bound, ci.mean, ci.upper_bound)
+        {
             match (new_rank as i32).cmp(&(old_rank as i32)) {
                 std::cmp::Ordering::Less => {
                     let difference = old_rank - new_rank;
                     println!(
-                        "{new_rank}, +{difference}, {:?}, {mean}, {lower_bound}, {upper_bound}",
+                        "{new_rank}, +{difference}, {:?}, {mean}, {lower_bound}, {upper_bound}, {n}",
                         album
                     );
                 }
                 std::cmp::Ordering::Equal => {
                     println!(
-                        "{new_rank}, 0, {:?}, {mean}, {lower_bound}, {upper_bound}",
+                        "{new_rank}, 0, {:?}, {mean}, {lower_bound}, {upper_bound}, {n}",
                         album
                     );
                 }
                 std::cmp::Ordering::Greater => {
                     let difference = new_rank - old_rank;
                     println!(
-                        "{new_rank}, -{difference}, {:?}, {mean}, {lower_bound}, {upper_bound}",
+                        "{new_rank}, -{difference}, {:?}, {mean}, {lower_bound}, {upper_bound}, {n}",
                         album
                     );
                 }

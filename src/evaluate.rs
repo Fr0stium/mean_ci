@@ -2,6 +2,7 @@ use special_fun::cephes_double::incbi;
 use std::fmt::Display;
 
 pub struct ConfidenceInterval {
+    pub n: i32,
     pub mean: Option<f64>,
     pub lower_bound: f64,
     pub upper_bound: f64,
@@ -23,6 +24,7 @@ pub fn get_mean_ci(
     let n = ratings.len();
     if n < 1 {
         return ConfidenceInterval {
+            n: 0,
             mean: None,
             lower_bound: min_support,
             upper_bound: max_support,
@@ -36,24 +38,29 @@ pub fn get_mean_ci(
     if max > max_support {
         panic!("The maximum value of the dataset ({max}) is greater than the given maximum support ({max_support})")
     }
-    let n = n as f64;
     // Gets the 100(1-`alpha`)% confidence interval for a particular value of the CDF.
     let get_cdf_ci = |x: f64| -> ConfidenceInterval {
         let ratings_leq_x = ratings.iter().filter(|&&rating| rating <= x).count() as f64;
         let mut cdf_ci = ConfidenceInterval {
-            mean: Some(ratings_leq_x / n),
+            n: n as i32,
+            mean: Some(ratings_leq_x / (n as f64)),
             lower_bound: 0.,
             upper_bound: 1.,
         };
         if x >= min {
-            cdf_ci.lower_bound = incbi(ratings_leq_x, n - ratings_leq_x + 1., alpha / 2.);
+            cdf_ci.lower_bound = incbi(ratings_leq_x, (n as f64) - ratings_leq_x + 1., alpha / 2.);
         }
         if x < max {
-            cdf_ci.upper_bound = incbi(1. + ratings_leq_x, n - ratings_leq_x, 1. - alpha / 2.);
+            cdf_ci.upper_bound = incbi(
+                1. + ratings_leq_x,
+                (n as f64) - ratings_leq_x,
+                1. - alpha / 2.,
+            );
         }
         cdf_ci
     };
     let mut mean_ci = ConfidenceInterval {
+        n: n as i32,
         mean: Some(mean),
         lower_bound: max - (min - min_support) * get_cdf_ci(min_support).upper_bound,
         upper_bound: max_support - (max_support - max) * get_cdf_ci(max).lower_bound,
